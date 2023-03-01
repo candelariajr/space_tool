@@ -1,60 +1,7 @@
 const agent = require('superagent');
 let fs = require ('fs');
+let http = require('http');
 
-function fallthrough(){
-    let fileContents = null;
-    fs.readFileSync("cached/cached.json", "utf-8", function(err, data){
-        fileContents = data;
-        if(err){
-            error(err);
-        }
-    });
-    if(fileContents !== null){
-        return fileContents;
-    }else{
-        return error("No Cached File");
-    }
-}
-
-const fileManager = {
-    fileContents : null,
-    isOpen : false,
-    fileStatus : function(){
-        //This here because I've built similar things in the past and
-        //ran into issues with timing of stuff
-        return this.isOpen;
-    },
-    readFile : function(fileName){
-        this.isOpen = true;
-        this.fileContents = null;
-        try{
-            this.fileContents = fs.readFileSync(fileName, 'utf-8');
-            if(this.fileContents !== null){
-                this.isOpen = false;
-                return this.fileContents;
-            }
-        }catch(e){
-            this.error(e);
-        }
-    },
-    writeFile : function(fileName, data){
-        this.fileContents = null;
-        this.isOpen = true;
-        try{
-            fs.writeFileSync(fileName, data, 'utf-8');
-            this.isOpen = false;
-        } catch(e){
-            this.error(e)
-        }
-    },
-    error: function(error){
-        errorHandler.appendTarget('File Manager Error ', error)
-    }
-};
-
-console.log(fileManager.readFile("cached/cached.json"));
-fileManager.writeFile('cached/testing.txt', 'I <3 Node JS');
-console.log(fileManager.readFile('cached/testing.txt'));
 
 let errorHandler = {
     outerTarget : null,
@@ -88,6 +35,74 @@ let errorHandler = {
     }
 };
 
-const eventSpool = {
-    
+
+const fileManager = {
+    fileContents : null,
+    isOpen : false,
+    fileStatus : function(){
+        //This here because I've built similar things in the past and
+        //ran into issues with timing of stuff
+        return this.isOpen;
+    },
+    readFile : function(fileName){
+        if(!this.fileStatus()){
+            this.isOpen = true;
+            this.fileContents = null;
+            try{
+                this.fileContents = fs.readFileSync(fileName, 'utf-8');
+                if(this.fileContents !== null){
+                    this.isOpen = false;
+                    // Moved: Keep data manipulation close to object
+                    // return JSON.parse(this.fileContents);
+                    return this.fileContents;
+                }
+            }catch(e){
+                this.error(e);
+            }
+        }
+    },
+    writeFile : function(fileName, data){
+        this.fileContents = null;
+        this.isOpen = true;
+        try{
+            fs.writeFileSync(fileName, data, 'utf-8');
+            this.isOpen = false;
+        } catch(e){
+            this.error(e)
+        }
+    },
+    error: function(error){
+        errorHandler.appendTarget('File Manager Error ', error)
+    }
 };
+
+console.log(fileManager.readFile("cached/cached.json"));
+fileManager.writeFile('cached/testing.txt', 'I <3 Node JS');
+console.log(fileManager.readFile('cached/testing.txt'));
+
+
+let configService = {
+    cachePod : 'cached/cached.json'
+}
+
+const eventSpool = {
+
+};
+
+const webHandler = {
+    httpObject : http,
+    cachePod: null,
+    start: function(){
+        let cacheName = configService.cachePod;
+        this.cachePod = fileManager.readFile(cacheName);
+        this.httpObject.createServer(function(request, response){
+            webHandler.listen(request, response);
+        }).listen(8080);
+    },
+    listen: function(request, response){
+        response.write(JSON.stringify({'test' : 'Hello World', 'cachePod' : webHandler.cachePod}));
+        response.end();
+    }
+};
+
+webHandler.start();
