@@ -53,8 +53,8 @@ const fileManager = {
                 if(this.fileContents !== null){
                     this.isOpen = false;
                     // Moved: Keep data manipulation close to object
-                    // return JSON.parse(this.fileContents);
-                    return this.fileContents;
+                    return JSON.parse(this.fileContents);
+                    //return this.fileContents;
                 }
             }catch(e){
                 this.error(e);
@@ -77,7 +77,7 @@ const fileManager = {
 };
 
 console.log(fileManager.readFile("cached/cached.json"));
-fileManager.writeFile('cached/testing.txt', 'I <3 Node JS');
+fileManager.writeFile('cached/testing.txt', JSON.stringify({'message' : 'I <3 Node JS'}));
 console.log(fileManager.readFile('cached/testing.txt'));
 
 
@@ -100,9 +100,63 @@ const webHandler = {
         }).listen(8080);
     },
     listen: function(request, response){
-        response.write(JSON.stringify({'test' : 'Hello World', 'cachePod' : webHandler.cachePod}));
+        // test code to be eliminated as it's just testing API connectivity
+        response.write(JSON.stringify({
+            'test' : 'Hello World',
+            'cachePod' : webHandler.cachePod,
+            'API' : APIHandshake.body,
+            'Handshake' : APICall.test}));
         response.end();
     }
 };
 
+
+
+const APIHandshake = {
+    body : null,
+    bearer: false,
+    data: {
+        'client_id' : '292',
+    },
+    get : function(){
+        // promise with async/await
+        (async () => {
+            // Data to be sent
+            const data = {
+                client_id: '292',
+
+            }
+            try {
+                // Make request
+                const {body} = await agent.post(
+                    'https://api2.libcal.com/1.1/oauth/token')
+                    .send(data)
+                // Store Bearer Token
+                // It's an Object that has to be Stringified then turned into an Object again
+                // This is when Node says "That's an Object" but it isn't...so we have to fix it.
+                this.bearer = JSON.parse(JSON.stringify(body))['access_token'];
+                APIHandshake.body = body;
+                APICall.init();
+            } catch (err) {
+                console.error(err)
+            }
+        })();
+    },
+    showBearer: function(){
+        return this.bearer
+    }
+}
+
+const APICall = {
+    init : function(){
+        if(APIHandshake.showBearer()){
+            console.log("SUCCESSOR: " + APIHandshake.showBearer());
+            this.test = 'SUCCESSOR ' + APIHandshake.showBearer();
+        }
+    },
+    test : "Unset"
+}
+
+// Spark it up!
 webHandler.start();
+APIHandshake.get();
