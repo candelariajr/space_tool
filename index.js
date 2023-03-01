@@ -34,7 +34,7 @@ const fileManager = {
                 return this.fileContents;
             }
         }catch(e){
-            error("File Manager Read Error: " + e);
+            this.error(e);
         }
     },
     writeFile : function(fileName, data){
@@ -44,8 +44,11 @@ const fileManager = {
             fs.writeFileSync(fileName, data, 'utf-8');
             this.isOpen = false;
         } catch(e){
-            error("File Manager Write Error: " + e);
+            this.error(e)
         }
+    },
+    error: function(error){
+        errorHandler.appendTarget('File Manager Error ', error)
     }
 };
 
@@ -53,7 +56,38 @@ console.log(fileManager.readFile("cached/cached.json"));
 fileManager.writeFile('cached/testing.txt', 'I <3 Node JS');
 console.log(fileManager.readFile('cached/testing.txt'));
 
-function error(message){
-    return JSON.stringify({'error' : message});
-}
+let errorHandler = {
+    outerTarget : null,
+    // This echos directly to the client. It should only be used
+    // for serious fuck-ups!
+    echo : function(message){
+        return JSON.stringify({'error' : message});
+    },
+    // These are errors that don't break functionality that the client can handle
+    appendTarget: function(added_key, value){
+        if(this.outerTarget === null){
+            this.outerTarget = {};
+            this.outerTarget[added_key] = value;
+        }else{
+            this.outerTarget[added_key] = value;
+        }
+    },
+    // See if an outer target is present and if so, return it in Object form to be
+    // added to client JSON
+    getOuterTarget: function(){
+        if(this.outerTarget === null){
+            return false;
+        }else{
+            return this.outerTarget;
+        }
+    },
+    // Clear Target (Any time a successful API call is made and cache is updated
+    // all outer target cache should be cleared
+    removeTarget: function(){
+        this.outerTarget = null;
+    }
+};
 
+const eventSpool = {
+    
+};
